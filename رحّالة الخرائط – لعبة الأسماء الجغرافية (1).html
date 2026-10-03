@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>رحّالة الخرائط – لعبة الأسماء الجغرافية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg1:#0a4262; --bg2:#0e7490;
+  --panel:#f4fbff; --text:#12263f; --muted:#4b6479; --line:#c5dde9;
+  --red:#c8102e; --green:#1f9d63; --gold:#f5b82e; --ink:#12263f;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --panel:#102b40; --text:#e8f4fb; --muted:#a8c1d3; --line:#27526d; }
+}
+:root[data-theme="dark"]{ --panel:#102b40; --text:#e8f4fb; --muted:#a8c1d3; --line:#27526d; }
+html{ scroll-padding-top:env(safe-area-inset-top,0px); }
+*,*::before,*::after{ box-sizing:inherit; }
+body{
+  margin:0; min-height:100vh; color:var(--text);
+  font-family:'Tajawal','Segoe UI',Tahoma,system-ui,sans-serif; font-size:17px; line-height:1.6;
+  background-color:#0a4262;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40' viewBox='0 0 120 40'%3E%3Cpath d='M0 20q15-14 30 0t30 0 30 0 30 0' fill='none' stroke='%23ffffff' stroke-opacity='.07' stroke-width='3'/%3E%3C/svg%3E"),
+    linear-gradient(165deg,var(--bg1),var(--bg2));
+  -webkit-tap-highlight-color:transparent;
+}
+h1,h2,h3{ font-family:'Lalezar','Tajawal',system-ui,sans-serif; font-weight:400; margin:0; line-height:1.25; }
+.wrap{ max-width:820px; margin:0 auto; padding:12px 14px 28px; }
+
+/* ---------- top bar ---------- */
+.top{ display:flex; align-items:center; justify-content:space-between; gap:10px; color:#fff; padding:6px 2px 10px; }
+.brand{ font-family:'Lalezar','Tajawal',sans-serif; font-size:1.7rem; letter-spacing:.2px; text-shadow:0 2px 0 rgba(0,0,0,.25); }
+.hud{ display:flex; align-items:center; gap:8px; }
+.pill{ background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.28); border-radius:999px; padding:2px 12px; font-weight:800; white-space:nowrap; }
+.pill.bump{ animation:bump .45s; }
+.icon-btn{ font:inherit; background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.28); border-radius:999px; width:38px; height:38px; cursor:pointer; }
+
+/* ---------- route ---------- */
+.route{ list-style:none; display:flex; justify-content:space-between; margin:0 4px 12px; padding:0; position:relative; }
+.route.hide{ display:none; }
+.route::before{ content:""; position:absolute; top:50%; inset-inline:16px; border-top:3px dashed rgba(255,255,255,.4); transform:translateY(-50%); }
+.node{ position:relative; width:34px; height:34px; border-radius:50%; background:#0b3550; color:#cfe8f5; border:3px solid rgba(255,255,255,.5); display:grid; place-items:center; font-weight:800; font-size:.95rem; }
+.node.done{ background:var(--green); color:#fff; border-color:#fff; }
+.node.cur{ background:var(--red); color:#fff; border-color:var(--gold); box-shadow:0 0 0 4px rgba(245,184,46,.4); }
+
+/* ---------- coach ---------- */
+.coach{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.coach .bubble{ flex:1; background:var(--panel); color:var(--text); border-radius:18px; padding:8px 14px; font-weight:700; min-height:48px; display:flex; align-items:center; position:relative; box-shadow:0 3px 0 rgba(0,0,0,.18); }
+.coach .bubble::before{ content:""; position:absolute; inset-inline-start:-8px; top:50%; width:16px; height:16px; background:var(--panel); transform:translateY(-50%) rotate(45deg); border-radius:3px; }
+.coach.pop .bubble{ animation:pop .35s; }
+#mascot{ flex:none; filter:drop-shadow(0 3px 0 rgba(0,0,0,.22)); }
+#mascot .m-sad,#mascot .m-think{ display:none; }
+#mascot[data-m="sad"] .m-happy,#mascot[data-m="think"] .m-happy{ display:none; }
+#mascot[data-m="sad"] .m-sad{ display:block; }
+#mascot[data-m="think"] .m-think{ display:block; }
+
+/* ---------- panels ---------- */
+.panel{ background:var(--panel); color:var(--text); border-radius:24px; padding:16px; box-shadow:0 6px 0 rgba(0,0,0,.2); }
+.lvl h2{ font-size:1.7rem; }
+.lvl .sub{ margin:2px 0 14px; color:var(--muted); font-weight:500; }
+.btn{ font:inherit; font-weight:800; font-size:1.1rem; background:var(--red); color:#fff; border:0; border-radius:16px; padding:.6em 1.6em; box-shadow:0 5px 0 #8c0b20; cursor:pointer; }
+.btn:active{ transform:translateY(3px); box-shadow:0 2px 0 #8c0b20; }
+.btn.alt{ background:var(--green); box-shadow:0 5px 0 #136b43; }
+:focus-visible{ outline:3px solid var(--gold); outline-offset:3px; }
+
+/* ---------- tags (draggable) ---------- */
+.tray{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; padding:10px; margin-bottom:14px; border-radius:18px; background:rgba(47,159,208,.14); border:2px dashed var(--line); min-height:64px; }
+.tag{
+  --fs:3; color:#12263f; background:#fff; border:2px solid #b9d3e2; border-radius:14px; padding:.3em .85em;
+  font-weight:800; font-size:calc(var(--fs) * 5.5px); line-height:1.25; box-shadow:0 4px 0 rgba(18,38,63,.22);
+  display:inline-flex; flex-direction:column; align-items:center; text-align:center;
+  cursor:grab; user-select:none; -webkit-user-select:none; touch-action:none;
+}
+.tag small{ font-size:.62em; font-weight:500; color:#4b6479; }
+.tag.sel{ outline:3px solid var(--gold); transform:translateY(-3px); }
+.tag.dragging{ cursor:grabbing; transform:rotate(-3deg) scale(1.07); box-shadow:0 14px 26px rgba(0,0,0,.35); pointer-events:none; }
+.tag.shake{ animation:shake .45s; }
+.tag.locked{ cursor:default; }
+.ph{ display:inline-block; }
+
+/* ---------- scene ---------- */
+.scene{ position:relative; container-type:inline-size; width:100%; max-width:720px; margin:0 auto; aspect-ratio:600/420; border-radius:18px; overflow:hidden; border:3px solid #12263f; background:#8fd3ee; color:#12263f; }
+.scene > svg{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+.slot{ border:2px dashed rgba(18,38,63,.6); border-radius:12px; background:rgba(255,255,255,.4); display:flex; align-items:center; justify-content:center; transition:background .15s,box-shadow .15s; }
+.slot::before{ content:"؟"; font-weight:800; color:rgba(18,38,63,.55); }
+.slot.filled::before,.slot[data-multi]::before{ display:none; }
+.scene .slot{ position:absolute; }
+.slot.hot{ background:rgba(245,184,46,.6); box-shadow:0 0 0 4px var(--gold); }
+.slot.filled{ border-color:transparent; background:transparent; }
+.scene .tag.placed{ background:none; border:0; box-shadow:none; padding:0; cursor:default; white-space:nowrap; font-size:calc(var(--fs) * 1cqw); text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 6px #fff; }
+.tag.placed small{ display:none; }
+.tag.placed.pulse{ animation:pop .4s; }
+.scene .tag.k-sea.placed{ color:#0a4f78; font-style:italic; letter-spacing:.08em; }
+.scene .tag.k-gov.placed{ color:#6b2a14; letter-spacing:.05em; }
+.scene .tag.k-road.placed{ color:#a0102a; }
+.scene .tag.k-area.placed{ color:#5a3a10; letter-spacing:.12em; }
+
+/* ---------- baskets / bins ---------- */
+.two{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.basket{ border-radius:20px; border:3px dashed; min-height:190px; padding:10px; color:#12263f; display:block; }
+.basket::before{ display:none; }
+.basket h3{ font-size:1.25rem; text-align:center; margin-bottom:8px; }
+.basket.nat{ background:#dff5e7; border-color:#3aa56f; }
+.basket.hum{ background:#e2ecff; border-color:#4a78d0; }
+.basket.yes{ background:#dff5e7; border-color:#3aa56f; }
+.basket.no{ background:#ffe4e4; border-color:#d9525a; }
+.pile{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+.basket .tag.placed{ --fs:2.6; flex-direction:row; gap:.3em; box-shadow:none; cursor:default; }
+.basket .tag.placed small{ display:inline; }
+
+/* ---------- rule boxes ---------- */
+.rules{ display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:12px; }
+.rulebox{ background:#fff; color:#12263f; border-radius:18px; border:2px solid var(--line); padding:10px; display:flex; flex-direction:column; gap:8px; }
+.rulebox h3{ font-size:1.2rem; text-align:center; }
+.rulebox svg{ width:100%; height:auto; border-radius:12px; display:block; }
+.rulebox .slot{ min-height:92px; padding:4px; }
+.rulebox .tag{ --fs:2.9; box-shadow:none; width:100%; font-weight:700; }
+.rulebox .tag.placed{ background:#e6f7ee; border-color:#3aa56f; }
+
+/* ---------- level 1 ---------- */
+.maps{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; margin-bottom:14px; }
+.mapcard{ font:inherit; font-weight:800; color:#12263f; background:#fff; border:3px solid var(--line); border-radius:20px; padding:8px; cursor:pointer; display:flex; flex-direction:column; gap:6px; align-items:center; box-shadow:0 5px 0 rgba(18,38,63,.2); }
+.mapcard svg{ width:100%; height:auto; border-radius:12px; display:block; }
+.mapcard.ok{ border-color:var(--green); background:#e6f7ee; }
+.mapcard.bad{ animation:shake .45s; border-color:var(--red); }
+.q{ background:#fde7d0; color:#12263f; border-radius:14px; padding:10px 14px; font-weight:800; margin:4px 0 12px; }
+.opts{ display:grid; gap:10px; }
+.opt{ font:inherit; font-weight:700; text-align:start; background:#fff; color:#12263f; border:3px solid var(--line); border-radius:16px; padding:10px 14px; cursor:pointer; }
+.opt.ok{ background:#e6f7ee; border-color:var(--green); }
+.opt.bad{ animation:shake .45s; border-color:var(--red); }
+.learn{ background:#e8f6ff; color:#12263f; border-inline-start:6px solid var(--sea,#2f9fd0); border-radius:14px; padding:12px 14px; margin:12px 0; font-weight:500; }
+.learn b{ font-weight:800; }
+
+/* ---------- intro / final ---------- */
+.hero{ text-align:center; }
+.hero h1{ font-size:clamp(2.3rem,9vw,3.6rem); color:var(--red); }
+.hero p{ margin:.2rem 0 1rem; color:var(--muted); font-weight:500; }
+.hero .art{ max-width:340px; margin:6px auto 14px; position:relative; transform:rotate(-2deg); background:#fff; padding:8px; border-radius:20px; box-shadow:0 8px 0 rgba(18,38,63,.2); }
+.hero .art svg{ width:100%; height:auto; display:block; border-radius:12px; }
+.hero .art .spin{ position:absolute; inset-inline-start:-18px; top:-22px; font-size:3rem; animation:spin 6s ease-in-out infinite; }
+.name{ font:inherit; font-weight:700; font-size:1.1rem; width:100%; max-width:320px; text-align:center; padding:.6em 1em; border-radius:14px; border:3px solid var(--line); background:#fff; color:#12263f; margin-bottom:12px; }
+.how{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:0 0 14px; padding:0; list-style:none; font-weight:700; font-size:.95rem; }
+.how li{ background:rgba(47,159,208,.16); border-radius:999px; padding:2px 12px; }
+.cert{ text-align:center; border:4px double var(--gold); border-radius:22px; padding:18px 12px; background:linear-gradient(180deg,rgba(245,184,46,.14),transparent); }
+.cert h2{ font-size:2.2rem; color:var(--red); }
+.cert .who{ font-family:'Lalezar','Tajawal',sans-serif; font-size:2rem; }
+.cert .rank{ font-size:1.4rem; font-weight:800; margin:6px 0; }
+.stars{ font-size:2.2rem; color:var(--gold); letter-spacing:4px; text-shadow:0 2px 0 rgba(0,0,0,.2); }
+.stats{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:10px 0 14px; font-weight:800; }
+.stats span{ background:rgba(47,159,208,.16); border-radius:999px; padding:2px 14px; }
+
+/* ---------- modal ---------- */
+.modal{ position:fixed; inset:0; z-index:2000; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(5,25,40,.6); }
+.modal[hidden]{ display:none; }
+.modal .panel{ max-width:380px; width:100%; text-align:center; animation:pop .4s; }
+.modal h2{ font-size:2rem; color:var(--red); }
+.modal .stars span{ display:inline-block; animation:pop .5s both; }
+.modal .stars span:nth-child(2){ animation-delay:.15s; } .modal .stars span:nth-child(3){ animation-delay:.3s; }
+.dim{ opacity:.3; }
+#confetti{ position:fixed; inset:0; pointer-events:none; z-index:3000; }
+footer{ text-align:center; color:rgba(255,255,255,.75); font-size:.85rem; padding-top:14px; font-weight:700; }
+
+@keyframes shake{ 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
+@keyframes pop{ 0%{transform:scale(.85);opacity:.4} 60%{transform:scale(1.06)} 100%{transform:scale(1);opacity:1} }
+@keyframes bump{ 50%{transform:scale(1.18)} }
+@keyframes spin{ 0%,100%{transform:rotate(-20deg)} 50%{transform:rotate(25deg)} }
+@media (prefers-reduced-motion: reduce){ *,*::before,*::after{ animation:none !important; transition:none !important; } }
+@media (max-width:420px){ .brand{ font-size:1.35rem; } .two{ gap:8px; } .basket{ padding:8px 6px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">🧭 رحّالة الخرائط</div>
+    <div class="hud">
+      <span class="pill" id="scorePill">⭐ <span id="score">0</span></span>
+      <span class="pill" id="timer">⏱ 0:00</span>
+      <button class="icon-btn" id="mute" aria-label="الصوت" title="الصوت">🔊</button>
+    </div>
+  </header>
+
+  <ol class="route hide" id="route" aria-label="مراحل الرحلة"></ol>
+
+  <section class="coach" id="coach" aria-live="polite">
+    <svg id="mascot" data-m="happy" viewBox="0 0 80 80" width="62" height="62" aria-hidden="true">
+      <circle cx="40" cy="46" r="29" fill="#f5b82e" stroke="#12263f" stroke-width="3"/>
+      <circle cx="40" cy="46" r="22" fill="#fff"/>
+      <path d="M13 30 Q40 -4 67 30 Z" fill="#c8102e" stroke="#12263f" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="40" cy="9" r="4" fill="#f5b82e" stroke="#12263f" stroke-width="2"/>
+      <circle cx="31" cy="44" r="3.6" fill="#12263f"/><circle cx="49" cy="44" r="3.6" fill="#12263f"/>
+      <path class="m-happy" d="M29 54 Q40 66 51 54" fill="none" stroke="#12263f" stroke-width="3" stroke-linecap="round"/>
+      <path class="m-sad" d="M30 61 Q40 51 50 61" fill="none" stroke="#12263f" stroke-width="3" stroke-linecap="round"/>
+      <path class="m-think" d="M32 58 H48" fill="none" stroke="#12263f" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+    <div class="bubble" id="say">أهلًا بك يا رحّالة!</div>
+  </section>
+
+  <main id="stage"></main>
+  <footer>إعداد الأستاذ: محمد الناعبي</footer>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="stars" id="mStars"></div>
+    <h2 id="mTitle"></h2>
+    <p id="mText"></p>
+    <button class="btn" id="mNext">المهمة التالية</button>
+  </div>
+</div>
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<script>
+(() => {
+'use strict';
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const stage = $('#stage');
+const S = { name: '', score: 0, streak: 0, stars: [], mist: 0, t0: 0, cur: -1, timerOn: false };
+const shuf = a => a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(v => v[1]);
+const esc = s => String(s).replace(/"/g, '&quot;');
+
+/* ================= sound ================= */
+let AC = null, muted = false;
+function ac() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (AC && AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(f, d, type = 'sine', v = .14, at = 0) {
+  if (muted) return; const c = ac(); if (!c) return;
+  try {
+    const o = c.createOscillator(), g = c.createGain(), t = c.currentTime + at;
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + d + .05);
+  } catch (e) {}
+}
+const sfx = {
+  ok:  () => { tone(660, .12); tone(880, .18, 'sine', .14, .1); },
+  bad: () => tone(170, .28, 'sawtooth', .1),
+  win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, .25, 'triangle', .15, i * .12)),
+  pick:() => tone(520, .07, 'sine', .08)
+};
+$('#mute').addEventListener('click', () => { muted = !muted; $('#mute').textContent = muted ? '🔇' : '🔊'; if (!muted) sfx.pick(); });
+
+/* ================= confetti ================= */
+const cv = $('#confetti'), cx = cv.getContext('2d'); let parts = [], raf = 0;
+function fit() { cv.width = innerWidth; cv.height = innerHeight; }
+addEventListener('resize', fit); fit();
+function confetti(n = 150) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cols = ['#c8102e', '#1f9d63', '#f5b82e', '#2f9fd0', '#ffffff'];
+  for (let i = 0; i < n; i++) parts.push({ x: innerWidth / 2 + (Math.random() - .5) * 220, y: innerHeight * .42, vx: (Math.random() - .5) * 15, vy: -Math.random() * 15 - 4, g: .35, s: 6 + Math.random() * 7, r: Math.random() * 6, vr: (Math.random() - .5) * .4, c: cols[i % cols.length], life: 130 + Math.random() * 60 });
+  if (!raf) loop();
+}
+function loop() {
+  cx.clearRect(0, 0, cv.width, cv.height);
+  parts = parts.filter(p => p.life > 0);
+  for (const p of parts) {
+    p.vy += p.g; p.x += p.vx; p.y += p.vy; p.vx *= .99; p.r += p.vr; p.life--;
+    cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.fillStyle = p.c; cx.globalAlpha = Math.min(1, p.life / 40);
+    cx.fillRect(-p.s / 2, -p.s / 3, p.s, p.s * .6); cx.restore();
+  }
+  if (parts.length) raf = requestAnimationFrame(loop); else { raf = 0; cx.clearRect(0, 0, cv.width, cv.height); }
+}
+
+/* ================= HUD / coach ================= */
+const sayEl = $('#say'), coach = $('#coach'), mascot = $('#mascot');
+function say(t, m = 'happy') {
+  sayEl.textContent = t; mascot.dataset.m = m;
+  coach.classList.remove('pop'); void coach.offsetWidth; coach.classList.add('pop');
+}
+function addScore(n) {
+  S.score = Math.max(0, S.score + n); $('#score').textContent = S.score;
+  const p = $('#scorePill'); p.classList.remove('bump'); void p.offsetWidth; p.classList.add('bump');
+}
+setInterval(() => {
+  if (!S.timerOn) return;
+  const s = Math.floor((Date.now() - S.t0) / 1000);
+  $('#timer').textContent = '⏱ ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}, 500);
+function renderRoute() {
+  const r = $('#route'); r.classList.toggle('hide', S.cur < 0 || S.cur >= LV.length);
+  r.innerHTML = LV.map((l, i) => `<li class="node ${i < S.cur ? 'done' : ''} ${i === S.cur ? 'cur' : ''}" title="${esc(l.title)}">${i < S.cur ? '✓' : i + 1}</li>`).join('');
+}
+
+/* ================= building blocks ================= */
+function T(k, html, o = {}) {
+  return `<div class="tag k-${k} ${o.cls || ''}" data-k="${k}" data-why="${esc(o.why || '')}" data-hint="${esc(o.hint || '')}" style="--fs:${o.fs || 3}" role="button" tabindex="0">${html}</div>`;
+}
+function SL(accept, css, cls = '', attrs = '') {
+  return `<div class="slot ${cls}" data-accept="${accept}" style="${css}" tabindex="0" role="button" aria-label="مكان الإفلات" ${attrs}></div>`;
+}
+const praise = ['أحسنت!', 'ممتاز!', 'رائع يا رحّالة!', 'إجابة صحيحة!', 'يا سلام عليك!', 'مذهل!'];
+const pr = () => praise[Math.floor(Math.random() * praise.length)];
+
+/* ================= drag & drop engine ================= */
+let drag = null, sel = null, hotEl = null;
+function hot(s) { if (hotEl && hotEl !== s) hotEl.classList.remove('hot'); hotEl = s; if (s && !s.classList.contains('filled')) s.classList.add('hot'); }
+function clearSel() { if (sel) sel.classList.remove('sel'); sel = null; }
+function toggleSel(t) {
+  if (sel === t) { clearSel(); return; }
+  clearSel(); sel = t; t.classList.add('sel'); sfx.pick();
+  say('اخترت «' + (t.querySelector('span') ? t.querySelector('span').textContent : t.textContent.trim().slice(0, 30)) + '». اضغط على المكان المناسب أو اسحبها إليه.', 'think');
+}
+function slotAt(x, y) {
+  for (const el of document.elementsFromPoint(x, y)) { const s = el.closest && el.closest('.slot'); if (s && stage.contains(s)) return s; }
+  return null;
+}
+function resetStyle(t) {
+  t.classList.remove('dragging');
+  ['position', 'left', 'top', 'width', 'z-index'].forEach(p => t.style.removeProperty(p));
+}
+function initDrag(tag) {
+  tag.addEventListener('pointerdown', e => {
+    if (tag.classList.contains('locked') || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    e.preventDefault(); ac();
+    const r = tag.getBoundingClientRect();
+    drag = { tag, pid: e.pointerId, sx: e.clientX, sy: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, w: r.width, h: r.height, moved: false, ph: null };
+    try { tag.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  tag.addEventListener('keydown', e => {
+    if ((e.key === 'Enter' || e.key === ' ') && !tag.classList.contains('locked')) { e.preventDefault(); toggleSel(tag); }
+  });
+}
+addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.pid) return;
+  const d = drag, t = d.tag;
+  if (!d.moved) {
+    if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 7) return;
+    const ph = document.createElement('span'); ph.className = 'ph'; ph.style.cssText = `width:${d.w}px;height:${d.h}px`;
+    t.before(ph); d.ph = ph; d.moved = true; clearSel();
+    t.classList.add('dragging'); t.style.position = 'fixed'; t.style.width = d.w + 'px'; t.style.zIndex = 999;
+  }
+  t.style.left = (e.clientX - d.ox) + 'px'; t.style.top = (e.clientY - d.oy) + 'px';
+  hot(slotAt(e.clientX, e.clientY));
+  if (e.clientY < 90) scrollBy(0, -14); else if (e.clientY > innerHeight - 90) scrollBy(0, 14);
+});
+function endDrag(e) {
+  if (!drag || e.pointerId !== drag.pid) return;
+  const d = drag; drag = null; hot(null);
+  if (!d.moved) { toggleSel(d.tag); return; }
+  const s = e.type === 'pointerup' ? slotAt(e.clientX, e.clientY) : null;
+  if (s) attempt(d.tag, s, d.ph); else { d.ph.replaceWith(d.tag); resetStyle(d.tag); }
+}
+addEventListener('pointerup', endDrag); addEventListener('pointercancel', endDrag);
+
+function attempt(tag, slot, ph) {
+  const okSlot = slot.dataset.accept.split(' ').includes(tag.dataset.k);
+  const free = slot.dataset.multi || !slot.classList.contains('filled');
+  if (okSlot && free) { place(tag, slot, ph); return; }
+  if (ph) ph.replaceWith(tag);
+  resetStyle(tag); wrong(tag);
+}
+function place(tag, slot, ph) {
+  if (ph) ph.remove();
+  resetStyle(tag); clearSel();
+  (slot.querySelector('.pile') || slot).append(tag);
+  tag.classList.add('placed', 'locked', 'pulse'); tag.tabIndex = -1;
+  if (!slot.dataset.multi) slot.classList.add('filled');
+  right(tag);
+  if (!$$('.tag:not(.locked)', stage).length) setTimeout(done, 750);
+}
+function right(tag) {
+  S.streak++;
+  const gain = 10 + Math.min(S.streak - 1, 5) * 2;
+  addScore(gain); sfx.ok();
+  const streak = S.streak >= 3 ? ` 🔥 ${S.streak} متتالية!` : '';
+  say(pr() + (tag.dataset.why ? ' ' + tag.dataset.why : '') + streak, 'happy');
+}
+function wrong(tag) {
+  S.mist++; S.streak = 0; addScore(-2); sfx.bad();
+  tag.classList.remove('shake'); void tag.offsetWidth; tag.classList.add('shake');
+  say(tag.dataset.hint || 'جرّب مكانًا آخر، فكّر في القاعدة!', 'sad');
+}
+function bind() {
+  $$('.tag', stage).forEach(initDrag);
+  $$('.slot', stage).forEach(s => {
+    s.addEventListener('click', () => {
+      if (!sel) return; if (s.classList.contains('filled') && !s.dataset.multi) return;
+      const t = sel; clearSel(); attempt(t, s, null);
+    });
+    s.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && sel) { e.preventDefault(); s.click(); } });
+  });
+}
+
+/* ================= SVG art ================= */
+function miniMap(labeled) {
+  const base = `<rect width="300" height="360" fill="#9bd7ef"/>
+  <g fill="none" stroke="#cdeefa" stroke-width="2.5" stroke-linecap="round"><path d="M230 90q8-7 16 0t16 0"/><path d="M250 250q8-7 16 0t16 0"/><path d="M180 330q8-7 16 0t16 0"/></g>
+  <path d="M0,0 L100,0 C115,25 140,50 155,95 C175,150 200,190 220,235 C232,275 215,320 195,360 L0,360 Z" fill="#f0dba6" stroke="#b58a3c" stroke-width="3"/>`;
+  if (!labeled) return `<svg viewBox="0 0 300 360" role="img" aria-label="خريطة بلا أسماء">${base}</svg>`;
+  return `<svg viewBox="0 0 300 360" role="img" aria-label="خريطة عليها أسماء جغرافية">${base}
+  <path d="M96,28 C80,70 90,110 70,150 C100,170 160,190 196,206" fill="none" stroke="#c8102e" stroke-width="3"/>
+  <g fill="#12263f"><circle cx="96" cy="28" r="5"/><circle cx="70" cy="150" r="5"/><circle cx="196" cy="206" r="5"/></g>
+  <g font-family="Tajawal,Tahoma,sans-serif" font-weight="800" fill="#12263f" font-size="19">
+    <text x="84" y="26" text-anchor="end">مسقط</text><text x="82" y="156">نزوى</text><text x="184" y="202" text-anchor="end">صور</text></g>
+  <g font-family="Tajawal,Tahoma,sans-serif" font-weight="700" font-style="italic" fill="#0a4f78" font-size="15">
+    <text x="222" y="62" text-anchor="middle">بحر عُمان</text><text x="258" y="300" text-anchor="middle" font-size="13">بحر العرب</text></g></svg>`;
+}
+function sceneCoast() {
+  return `<svg viewBox="0 0 600 420" preserveAspectRatio="none" aria-hidden="true">
+  <rect width="600" height="420" fill="#8fd3ee"/>
+  <g fill="none" stroke="#c9eefb" stroke-width="3" stroke-linecap="round"><path d="M30 60q12-9 24 0t24 0"/><path d="M440 80q12-9 24 0t24 0"/><path d="M120 120q12-9 24 0t24 0"/><path d="M520 30q12-9 24 0t24 0"/></g>
+  <path d="M0,180 C120,160 200,215 300,185 C420,150 500,115 600,125 L600,420 L0,420 Z" fill="#efd9a2" stroke="#b58a3c" stroke-width="3"/>
+  <path d="M330,218 L585,152 L585,400 L330,400 Z" fill="none" stroke="#8a4b2a" stroke-width="3" stroke-dasharray="12 7"/>
+  <circle cx="300" cy="185" r="7" fill="#12263f"/><circle cx="150" cy="300" r="7" fill="#12263f"/>
+  <text x="70" y="90" font-size="30">⛵</text><text x="470" y="365" font-size="28">🌴</text><text x="40" y="385" font-size="28">🌴</text><text x="230" y="395" font-size="26">🐪</text>
+  </svg>`;
+}
+function sceneFinal() {
+  return `<svg viewBox="0 0 600 420" preserveAspectRatio="none" aria-hidden="true">
+  <rect width="600" height="420" fill="#8fd3ee"/>
+  <g fill="none" stroke="#c9eefb" stroke-width="3" stroke-linecap="round"><path d="M200 30q12-9 24 0t24 0"/><path d="M60 100q12-9 24 0t24 0"/><path d="M500 40q12-9 24 0t24 0"/></g>
+  <path d="M0,140 C100,120 180,170 280,150 C380,130 480,90 600,110 L600,420 L0,420 Z" fill="#efd9a2" stroke="#b58a3c" stroke-width="3"/>
+  <g transform="rotate(-22 150 235)"><ellipse cx="150" cy="235" rx="108" ry="27" fill="#d8b46a" stroke="#9a6a22" stroke-width="2"/><ellipse cx="150" cy="235" rx="82" ry="17" fill="#b98a3f"/><ellipse cx="150" cy="235" rx="50" ry="9" fill="#8a5f22"/></g>
+  <path d="M200,330 C280,305 380,325 480,290" fill="none" stroke="#c8102e" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="432" cy="115" r="7" fill="#12263f"/><circle cx="200" cy="330" r="7" fill="#12263f"/>
+  <text x="480" y="300" font-size="26" text-anchor="middle">✈️</text>
+  <text x="100" y="60" font-size="30">⛵</text><text x="520" y="380" font-size="28">🌴</text><text x="330" y="395" font-size="26">🐪</text>
+  </svg>`;
+}
+const symArt = {
+  point: `<svg viewBox="0 0 260 110"><rect width="260" height="110" fill="#f0dba6"/><circle cx="130" cy="64" r="7" fill="#12263f"/><text x="130" y="50" text-anchor="middle" font-size="17" font-weight="800" fill="#12263f" font-family="Tajawal,Tahoma,sans-serif">مدينة</text></svg>`,
+  line:  `<svg viewBox="0 0 260 110"><rect width="260" height="110" fill="#f0dba6"/><path d="M15,88 C85,50 170,100 245,34" fill="none" stroke="#c8102e" stroke-width="5" stroke-linecap="round"/><text x="115" y="50" text-anchor="middle" font-size="17" font-weight="800" fill="#a0102a" font-family="Tajawal,Tahoma,sans-serif" transform="rotate(-8 115 50)">طريق</text></svg>`,
+  area:  `<svg viewBox="0 0 260 110"><rect width="260" height="110" fill="#c8e6b0"/><g transform="rotate(-15 130 58)"><ellipse cx="130" cy="58" rx="110" ry="24" fill="#d8b46a" stroke="#9a6a22" stroke-width="2"/><ellipse cx="130" cy="58" rx="78" ry="14" fill="#b98a3f"/></g><text x="130" y="63" text-anchor="middle" font-size="17" font-weight="800" fill="#fff" font-family="Tajawal,Tahoma,sans-serif" transform="rotate(-15 130 58)">سلسلة جبال</text></svg>`
+};
+
+/* ================= levels ================= */
+const LV = [
+{ title: 'أي خريطة تختار؟', par: 45, render() {
+  stage.innerHTML = `<div class="panel lvl"><h2>المهمة ١: أي خريطة تختار؟</h2><p class="sub">اضغط على الخريطة التي تساعدك على الوصول.</p>
+  <div class="q">إذا أردتَ التوجّه من مسقط إلى صور، أي الخريطتين ستستخدم؟ ولماذا؟</div>
+  <div class="maps">
+    <button class="mapcard" data-m="a">${miniMap(false)}<span>الخريطة (أ)</span></button>
+    <button class="mapcard" data-m="b">${miniMap(true)}<span>الخريطة (ب)</span></button>
+  </div><div id="step2"></div></div>`;
+  say('انظر جيدًا إلى الخريطتين، ثم اختر.', 'think');
+  $$('.mapcard', stage).forEach(b => b.addEventListener('click', () => {
+    ac();
+    if (b.dataset.m === 'a') { b.classList.remove('bad'); void b.offsetWidth; b.classList.add('bad'); S.mist++; S.streak = 0; addScore(-2); sfx.bad(); say('هذه الخريطة بلا أسماء، فكيف ستعرف أين مسقط وصور؟', 'sad'); return; }
+    $$('.mapcard', stage).forEach(x => x.disabled = true); b.classList.add('ok'); $('.mapcard[data-m="a"]', stage).classList.add('dim');
+    S.streak++; addScore(10); sfx.ok(); say('أحسنت! الآن: لماذا اخترتها؟', 'happy');
+    $('#step2').innerHTML = `<div class="q">لماذا اخترتَ الخريطة (ب)؟</div><div class="opts">
+      <button class="opt" data-r="1">لأنها تحتوي على أسماء جغرافية تدلّني على الأماكن</button>
+      <button class="opt" data-r="0">لأن ألوانها أجمل</button>
+      <button class="opt" data-r="0">لأنها أصغر حجمًا</button></div>`;
+    $$('.opt', stage).forEach(o => o.addEventListener('click', () => {
+      if (o.dataset.r === '0') { o.classList.remove('bad'); void o.offsetWidth; o.classList.add('bad'); S.mist++; S.streak = 0; addScore(-2); sfx.bad(); say('فكّر: ما الذي يجعل الخريطة مفيدة للتنقّل؟', 'sad'); return; }
+      $$('.opt', stage).forEach(x => x.disabled = true); o.classList.add('ok');
+      S.streak++; addScore(10); sfx.ok(); say(pr(), 'happy');
+      $('#step2').insertAdjacentHTML('beforeend', `<div class="learn"><b>الأسماء الجغرافية</b> هي مسمّيات الأماكن والظواهر الجغرافية، الطبيعية والبشرية، التي تظهر على الخريطة، وهي التي تمنح كل مكان دلالته.</div><button class="btn alt" id="go1">تابع الرحلة</button>`);
+      $('#go1').addEventListener('click', done);
+    }));
+  }));
+}},
+
+{ title: 'أين أكتب الاسم؟', par: 80, render() {
+  const tags = shuf([
+    T('sea',   '<span>بحر عُمان</span><small>مسطح مائي</small>',   { fs: 2.9, why: 'اسم البحر يُكتب فوق الماء.', hint: 'البحر مسطح مائي، فاكتب اسمه فوق الماء بعيدًا عن الساحل.' }),
+    T('gov',   '<span>محافظة الداخلية</span><small>محافظة</small>', { fs: 3.6, why: 'المحافظة أهم من المدينة فتُكتب بخط أكبر.', hint: 'حجم الخط يتبع أهمية الظاهرة: المحافظة تحتاج مساحة أكبر وخطًا أكبر.' }),
+    T('coastal','<span>صحار</span><small>مدينة ساحلية</small>',     { fs: 2.3, why: 'أسماء المدن الساحلية تُكتب على المسطح المائي.', hint: 'المدينة الساحلية يُكتب اسمها على المسطح المائي قرب رمزها.' }),
+    T('inland','<span>نزوى</span><small>مدينة داخلية</small>',      { fs: 2.3, why: 'أسماء المدن الداخلية تُكتب على اليابس.', hint: 'المدينة الداخلية يُكتب اسمها على اليابس بجانب رمزها.' })
+  ]).join('');
+  stage.innerHTML = `<div class="panel lvl"><h2>المهمة ٢: أين أكتب الاسم؟</h2><p class="sub">ضع كل اسم في مكانه الصحيح على الخريطة. انتبه لحجم الخط!</p>
+  <div class="tray">${tags}</div>
+  <div class="scene">${sceneCoast()}
+    ${SL('sea',     'left:62%;top:4%;width:34%;height:12%')}
+    ${SL('coastal', 'left:30%;top:28%;width:26%;height:10%')}
+    ${SL('inland',  'left:29%;top:67%;width:26%;height:10%')}
+    ${SL('gov',     'left:58%;top:55%;width:38%;height:16%')}
+  </div></div>`;
+  say('انتبه: المسطح المائي واليابس وحجم الخط.', 'think'); bind();
+}},
+
+{ title: 'قواعد الرموز', par: 60, render() {
+  const tags = shuf([
+    T('point', 'تُكتب الأسماء غالبًا أعلى الرمز أو يمينه مباشرةً.', { why: 'هذه قاعدة الرموز النقطية.', hint: 'الرمز النقطي نقطة صغيرة، فاسمه يكون بجوارها.' }),
+    T('line',  'تُكتب الأسماء فوق الرمز مباشرةً، وليس أسفله.', { why: 'هذه قاعدة الرموز الخطية.', hint: 'الرمز الخطي خط ممتد كالطريق.' }),
+    T('area',  'تُكتب الأسماء على الظواهر ذات الامتداد المساحي بوضع يدل على اتجاه امتدادها.', { why: 'هذه قاعدة الرموز المساحية.', hint: 'الرمز المساحي له امتداد واسع كالجبال.' })
+  ]).join('');
+  stage.innerHTML = `<div class="panel lvl"><h2>المهمة ٣: قواعد الرموز</h2><p class="sub">اسحب القاعدة إلى نوع الرمز الذي تخصّه.</p>
+  <div class="tray">${tags}</div>
+  <div class="rules">
+    <div class="rulebox"><h3>الرموز النقطية</h3>${symArt.point}${SL('point', '')}</div>
+    <div class="rulebox"><h3>الرموز الخطية</h3>${symArt.line}${SL('line', '')}</div>
+    <div class="rulebox"><h3>الرموز المساحية</h3>${symArt.area}${SL('area', '')}</div>
+  </div></div>`;
+  say('انظر إلى شكل الرمز: نقطة؟ خط؟ أم مساحة؟', 'think'); bind();
+}},
+
+{ title: 'أكمل الخريطة', par: 110, render() {
+  const tags = shuf([
+    T('sea',     '<span>بحر العرب</span><small>مسطح مائي</small>',   { fs: 2.9, why: 'اسم البحر فوق الماء.', hint: 'البحر مسطح مائي، فاكتب اسمه فوق الماء.' }),
+    T('coastal', '<span>صور</span><small>مدينة ساحلية</small>',      { fs: 2.4, why: 'المدينة الساحلية اسمها على المسطح المائي.', hint: 'المدينة الساحلية يُكتب اسمها على الماء قرب رمزها.' }),
+    T('inland',  '<span>نزوى</span><small>مدينة داخلية</small>',     { fs: 2.4, why: 'المدينة الداخلية اسمها على اليابس.', hint: 'المدينة الداخلية اسمها على اليابس عند رمزها.' }),
+    T('airport', '<span>مطار</span><small>رمز نقطي</small>',        { fs: 2.4, why: 'الرمز النقطي: الاسم أعلاه مباشرةً.', hint: 'المطار رمز نقطي: يُكتب اسمه أعلى الرمز أو يمينه.' }),
+    T('road',    '<span>طريق</span><small>رمز خطي</small>',         { fs: 2.4, cls: 'k-road', why: 'اسم الرمز الخطي فوق الخط مباشرةً.', hint: 'الطريق رمز خطي: اكتب اسمه فوق الخط وليس تحته.' }),
+    T('area',    '<span>جبال الحجر</span><small>رمز مساحي</small>',  { fs: 2.8, why: 'الاسم المساحي بوضع يدل على اتجاه الامتداد.', hint: 'السلسلة الجبلية ظاهرة مساحية: اكتب اسمها بامتداد اتجاهها.' })
+  ]).join('');
+  stage.innerHTML = `<div class="panel lvl"><h2>المهمة ٤: أكمل الخريطة</h2><p class="sub">ضع كل اسم عند رمزه بالطريقة الصحيحة. هذا هو التحدي الكبير!</p>
+  <div class="tray">${tags}</div>
+  <div class="scene">${sceneFinal()}
+    ${SL('sea',     'left:4%;top:5%;width:32%;height:10%')}
+    ${SL('coastal', 'left:50%;top:14%;width:26%;height:9%')}
+    ${SL('inland',  'left:20%;top:66%;width:24%;height:9%')}
+    ${SL('airport', 'left:70%;top:55%;width:20%;height:9%')}
+    ${SL('road',    'left:44%;top:62%;width:20%;height:8%')}
+    ${SL('area',    'left:13%;top:52%;width:24%;height:8%;transform:rotate(-22deg)')}
+  </div></div>`;
+  say('كل اسم له مكانه: على الماء، أو على اليابس، أو فوق الخط.', 'think'); bind();
+}}
+];
+
+/* ================= flow ================= */
+function intro() {
+  S.cur = -1; S.timerOn = false; renderRoute();
+  stage.innerHTML = `<div class="panel hero">
+    <h1>رحّالة الخرائط</h1>
+    <p>الصف السادس · الدراسات الاجتماعية<br>الأسماء الجغرافية على الخريطة</p>
+    <div class="art"><span class="spin" aria-hidden="true">🧭</span>${miniMap(true)}</div>
+    <ul class="how"><li>🖐️ اسحب</li><li>🎯 أفلت</li><li>⭐ اجمع النجوم</li></ul>
+    <input class="name" id="nm" type="text" maxlength="24" placeholder="اكتب اسمك هنا" aria-label="اسمك" autocomplete="off">
+    <div><button class="btn" id="start">ابدأ الرحلة 🚀</button></div>
+  </div>`;
+  say('مرحبًا يا رحّالة! ستجتاز ٤ مهمات لتصبح رسّام خرائط ماهرًا.', 'happy');
+  $('#start').addEventListener('click', () => {
+    ac(); S.name = ($('#nm').value || '').trim() || 'أيها الرحّالة';
+    S.score = 0; S.streak = 0; S.stars = []; $('#score').textContent = 0; sfx.win(); go(0);
+  });
+}
+function go(i) {
+  S.cur = i; S.mist = 0; S.t0 = Date.now(); S.timerOn = true; clearSel();
+  renderRoute(); LV[i].render(); scrollTo({ top: 0 });
+}
+function done() {
+  S.timerOn = false;
+  const el = (Date.now() - S.t0) / 1000, l = LV[S.cur];
+  const st = S.mist <= 1 ? 3 : S.mist <= 3 ? 2 : 1;
+  const fast = el < l.par; if (fast) addScore(15);
+  S.stars[S.cur] = st; sfx.win(); confetti(st === 3 ? 180 : 100);
+  $('#mStars').innerHTML = [1, 2, 3].map(n => `<span>${n <= st ? '★' : '☆'}</span>`).join('');
+  $('#mTitle').textContent = ['', 'أنجزت المهمة!', 'عمل جيد!', 'مذهل يا بطل!'][st];
+  $('#mText').textContent = (S.mist === 0 ? 'بلا أي خطأ! ' : S.mist + (S.mist === 1 ? ' محاولة خاطئة. ' : ' محاولات خاطئة. ')) + (fast ? 'وحصلت على +١٥ مكافأة سرعة ⚡' : 'حاول أن تكون أسرع في المرة القادمة.');
+  const last = S.cur === LV.length - 1;
+  $('#mNext').textContent = last ? 'اعرض شهادتي 🏆' : 'المهمة التالية';
+  $('#modal').hidden = false; $('#mNext').focus();
+}
+$('#mNext').addEventListener('click', () => {
+  $('#modal').hidden = true;
+  if (S.cur === LV.length - 1) finish(); else go(S.cur + 1);
+});
+function finish() {
+  S.cur = LV.length; renderRoute();
+  const total = S.stars.reduce((a, b) => a + b, 0), max = LV.length * 3;
+  const rank = total >= max * 0.88 ? ['🏆', 'رسّام خرائط خبير'] : total >= max * 0.66 ? ['🥇', 'رحّالة ماهر'] : ['🧭', 'مستكشف واعد'];
+  let d = ''; try { d = new Date().toLocaleDateString('ar-OM'); } catch (e) {}
+  stage.innerHTML = `<div class="panel"><div class="cert">
+    <div style="font-size:3rem">${rank[0]}</div>
+    <h2>شهادة تقدير</h2>
+    <p>تُمنح هذه الشهادة إلى البطل</p>
+    <div class="who">${S.name.replace(/[<>&]/g, '')}</div>
+    <div class="rank">${rank[1]}</div>
+    <p>لإتقانه كتابة الأسماء الجغرافية على الخريطة</p>
+    <div class="stars">${'★'.repeat(total)}<span class="dim">${'★'.repeat(max - total)}</span></div>
+    <div class="stats"><span>⭐ النقاط: ${S.score}</span><span>🌟 النجوم: ${total} / ${max}</span>${d ? `<span>📅 ${d}</span>` : ''}</div>
+    <button class="btn" id="again">العب مرة أخرى</button>
+  </div></div>`;
+  $('.stars', stage).style.fontSize = '1.25rem'; $('.stars', stage).style.letterSpacing = '1px';
+  say('بطل حقيقي! التقط صورة للشهادة لتحتفظ بها 📸', 'happy'); confetti(220);
+  $('#again').addEventListener('click', intro);
+}
+
+renderRoute(); intro();
+})();
+</script>
+</body>
+</html>
